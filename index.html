@@ -276,7 +276,7 @@
   .cart-total{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-family:'Anton',sans-serif; font-size:1.3rem;}
 
   .field{ margin-bottom:16px; }
-  .field label{ display:block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--silver); margin-bottom:8px;}
+.field label{ display:block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--silver); margin-bottom:8px;}
   .field input, .field select, .field textarea{
     width:100%; background:var(--panel); border:1px solid var(--line); color:var(--white);
     padding:12px 14px; font-family:inherit; font-size:.9rem; border-radius:4px;
@@ -386,13 +386,175 @@
   </div>
   <div class="cats reveal-stagger reveal">
     <div class="cat-card" data-cat="Shirt">
-      <img class="bg" src="https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=1200&auto=format&fit=crop" alt="shi
-        <div id="ownerContent" style="display:none;">
+      <img class="bg" src="https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=1200&auto=format&fit=crop" alt="shirts">
+      <div class="label"><span>CATEGORY</span><h3>Shirts</h3></div>
+    </div>
+    <div class="cat-card" data-cat="T-Shirt">
+      <img class="bg" src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=1200&auto=format&fit=crop" alt="t-shirts">
+      <div class="label"><span>CATEGORY</span><h3>T-Shirts</h3></div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOP -->
+<section id="shop">
+  <div class="section-head reveal">
+    <div>
+      <span class="tag">02 &mdash; THE DROP</span>
+      <h2>Full collection</h2>
+    </div>
+    <p>Every product below is stocked and priced by OUTZ directly.</p>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-filter="All">All</button>
+    <button class="tab" data-filter="Shirt">Shirts</button>
+    <button class="tab" data-filter="T-Shirt">T-Shirts</button>
+  </div>
+  <div class="grid reveal" id="productGrid"></div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="about reveal">
+    <div>
+      <span class="tag">03 &mdash; THE LABEL</span>
+      <h2>Built small.<br>Worn everywhere.</h2>
+      <p style="color:var(--silver); margin-top:16px; line-height:1.7;">OUTZ CLOTHING started in 2026 with one idea: cut out the middle layer between the person who makes the call on a design and the person who wears it. Every shirt and tee on this site is chosen, priced and shipped directly by us.</p>
+      <div class="stat-row">
+        <div class="stat"><h3 id="statCount">0</h3><span>Products live</span></div>
+        <div class="stat"><h3>100%</h3><span>Direct from owner</span></div>
+        <div class="stat"><h3>2026</h3><span>Est.</span></div>
+      </div>
+    </div>
+    <div class="about-visual"><img src="outz-logo.jpg" alt="OUTZ"></div>
+  </div>
+</section>
+
+<!-- CONTACT / FOOTER -->
+<footer id="contact">
+  <div class="foot-grid">
+    <div>
+      <div class="foot-brand"><img src="outz-logo.jpg" alt="logo"><span>OUTZ CLOTHING</span></div>
+      <p>Shirts &amp; t-shirts, dropped direct. Reach out any time &mdash; we reply fast on WhatsApp.</p>
+    </div>
+    <div>
+      <h5>Contact</h5>
+      <p><a href="mailto:outzclothing46@gmail.com">outzclothing46@gmail.com</a></p>
+      <p><a href="tel:+918089573667">+91 80895 73667</a></p>
+      <p><a href="https://wa.me/918089573667" target="_blank">WhatsApp us</a></p>
+    </div>
+    <div>
+      <h5>Shop</h5>
+      <p><a href="#shop">All products</a></p>
+      <p><a href="#categories">Shirts</a></p>
+      <p><a href="#categories">T-Shirts</a></p>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <span>&copy; 2026 OUTZ CLOTHING. All rights reserved.</span>
+    <div style="display:flex; gap:18px; align-items:center;">
+      <button class="owner-link" data-open-privacy>Privacy &amp; safety</button>
+      <button class="owner-link" id="ownerBtn2">Owner login <span class="ping-dot" id="ownerPing2" style="display:none;"></span></button>
+    </div>
+  </div>
+</footer>
+
+<a class="float-wa" href="https://wa.me/918089573667" target="_blank" title="Chat on WhatsApp">&#128172;</a>
+
+<!-- CART DRAWER -->
+<div class="overlay" id="cartOverlay">
+  <div class="drawer">
+    <div class="drawer-head"><h3>Your bag</h3><button class="close-x" data-close="cartOverlay">&times;</button></div>
+    <div id="cartItems"></div>
+    <div id="cartEmpty" style="display:none;" class="empty-state">Your bag is empty. Go add something you'll actually wear.</div>
+    <div class="cart-total"><span>Total</span><span id="cartTotal">₹0</span></div>
+    <button class="btn" style="width:100%; justify-content:center; margin-top:18px;" id="checkoutBtn">Checkout</button>
+  </div>
+</div>
+
+<!-- CHECKOUT DRAWER -->
+<div class="overlay" id="checkoutOverlay">
+  <div class="drawer">
+    <div class="drawer-head"><h3 id="checkoutTitle">Checkout</h3><button class="close-x" data-close="checkoutOverlay">&times;</button></div>
+
+    <div class="trust-strip">
+      <span>&#128274; Encrypted page</span>
+      <span>&#128683; No card details stored</span>
+      <span>&#9989; Manually verified orders</span>
+    </div>
+
+    <div id="checkoutStep1">
+      <div class="field"><label>Full name</label><input id="custName" maxlength="80" placeholder="Your name"></div>
+      <div class="field"><label>Phone number</label><input id="custPhone" maxlength="15" placeholder="10-digit mobile number"></div>
+      <div class="field"><label>Delivery address</label><textarea id="custAddress" maxlength="300" placeholder="House no, street, city, pincode"></textarea></div>
+      <!-- Honeypot: hidden from real people, only a bot fills this in -->
+      <div style="position:absolute; left:-9999px; opacity:0; height:0; overflow:hidden;" aria-hidden="true">
+        <label>Website</label><input id="custWebsite" tabindex="-1" autocomplete="off">
+      </div>
+      <div id="orderSummaryLines" style="margin:18px 0;"></div>
+      <div class="cart-total"><span>To pay</span><span id="checkoutTotal">₹0</span></div>
+      <button class="btn" style="width:100%; justify-content:center; margin-top:18px;" id="toPaymentBtn">Continue to payment</button>
+      <p class="privacy-note">Your details are shared only with OUTZ CLOTHING to process this order. <button type="button" class="link-btn" data-open-privacy>See our privacy policy</button></p>
+    </div>
+
+    <div id="checkoutStep2" style="display:none;">
+      <p style="color:var(--silver); font-size:.85rem; line-height:1.6;">Scan the QR below with any UPI app (GPay, PhonePe, Paytm) and pay the exact amount shown. Once paid, tap the confirm button &mdash; it opens WhatsApp with your order pre-filled so we can verify and ship it fast.</p>
+      <div class="pay-box">
+        <div class="amt" id="payAmt">₹0</div>
+        <img src="outz-qr.jpg" alt="UPI QR code">
+        <div class="upi">UPI ID: alfiyakathija7@okicici</div>
+        <div class="upi" style="margin-top:6px;">GPay / PhonePe number: +91 80895 73667</div>
+        <div class="pay-secure">&#128274; Paid directly through your UPI app &mdash; OUTZ never sees or stores your bank details.</div>
+      </div>
+      <button class="btn" style="width:100%; justify-content:center;" id="confirmWaBtn">I've paid &mdash; confirm on WhatsApp</button>
+      <button class="btn ghost" style="width:100%; justify-content:center; margin-top:10px;" id="confirmEmailBtn">Confirm via email instead</button>
+      <button class="btn ghost" style="width:100%; justify-content:center; margin-top:10px;" id="backToStep1">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRIVACY & SAFETY DRAWER -->
+<div class="overlay" id="privacyOverlay">
+  <div class="drawer">
+    <div class="drawer-head"><h3>Privacy &amp; safety</h3><button class="close-x" data-close="privacyOverlay">&times;</button></div>
+    <div style="color:var(--silver); font-size:.86rem; line-height:1.75;">
+      <h5 style="color:var(--white); font-family:'Anton',sans-serif; font-size:1rem; margin:14px 0 6px; letter-spacing:.02em;">What we collect</h5>
+      <p>When you place an order we only ask for your name, phone number and delivery address. We never ask for your card number, UPI PIN, CVV or OTP &mdash; and OUTZ CLOTHING staff will never call or message asking for these.</p>
+
+      <h5 style="color:var(--white); font-family:'Anton',sans-serif; font-size:1rem; margin:18px 0 6px; letter-spacing:.02em;">How payment works</h5>
+      <p>Payment happens entirely inside your own UPI app (GPay, PhonePe, Paytm, etc.) when you scan our QR code. We do not process, touch or store your bank or card details on this website at any point.</p>
+
+      <h5 style="color:var(--white); font-family:'Anton',sans-serif; font-size:1rem; margin:18px 0 6px; letter-spacing:.02em;">How your order is used</h5>
+      <p>Your order details are used only to confirm, pack and ship your order, and to reach you if there's an issue with delivery. We don't sell or share your information with third parties.</p>
+
+      <h5 style="color:var(--white); font-family:'Anton',sans-serif; font-size:1rem; margin:18px 0 6px; letter-spacing:.02em;">Staying safe</h5>
+      <p>All input on this site is filtered before it's stored or displayed, to stop malicious code or links from being submitted through the order form. Never share OTPs, PINs or passwords with anyone claiming to be OUTZ &mdash; we will never ask.</p>
+
+      <h5 style="color:var(--white); font-family:'Anton',sans-serif; font-size:1rem; margin:18px 0 6px; letter-spacing:.02em;">Questions</h5>
+      <p>Reach us any time at <a href="mailto:outzclothing46@gmail.com" style="color:var(--ice);">outzclothing46@gmail.com</a> or <a href="https://wa.me/918089573667" style="color:var(--ice);" target="_blank">WhatsApp</a>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- OWNER DRAWER -->
+<div class="overlay" id="ownerOverlay">
+  <div class="drawer">
+    <div class="drawer-head"><h3>Owner panel</h3><button class="close-x" data-close="ownerOverlay">&times;</button></div>
+
+    <div id="lockScreen" class="lock-screen">
+      <div class="icon">&#128274;</div>
+      <p style="color:var(--silver); font-size:.85rem; margin-bottom:18px;">Enter the owner passcode to manage products and view orders.</p>
+      <div class="field"><input id="ownerPass" type="password" placeholder="Passcode"></div>
+      <button class="btn" style="width:100%; justify-content:center;" id="unlockBtn">Unlock</button>
+      <p style="font-size:.7rem; color:#666; margin-top:14px;">Forgot your passcode? It's set in the site's code, ask whoever built the site for you.</p>
+    </div>
+
+    <div id="ownerContent" style="display:none;">
       <div class="admin-tabs">
         <button class="admin-tab active" data-atab="add">Add product</button>
         <button class="admin-tab" data-atab="manage">Manage (<span id="mgCount">0</span>)</button>
         <button class="admin-tab" data-atab="orders">Orders (<span id="orCount">0</span>)</button>
-      </div>
+        </div>
 
       <div id="atabAdd">
         <div class="field"><label>Product name</label><input id="pName" placeholder="e.g. Charcoal Oversized Tee"></div>
@@ -426,7 +588,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const OWNER_PASS = "outz2026";
+const OWNER_PASS = "ALLAHISGREAT786";
 const WHATSAPP_NUMBER = "918089573667";
 const OWNER_EMAIL = "outzclothing46@gmail.com";
 
@@ -439,11 +601,14 @@ function fmt(n){ return "₹" + Number(n).toLocaleString("en-IN"); }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
 /* ---------------- security helpers ---------------- */
+// Escapes any user-supplied text before it is inserted into the page, so a
+// product name, order note, or address can never be interpreted as HTML/script.
 function esc(str){
   return String(str ?? '').replace(/[&<>"']/g, ch => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
   }[ch]));
 }
+// Strips angle brackets as text is typed, as a second layer of defence.
 function sanitizeInput(str){
   return String(str ?? '').replace(/[<>]/g, '').slice(0, 500);
 }
@@ -817,13 +982,21 @@ function observeReveals(){
     entries.forEach(entry=>{
       if(entry.isIntersecting){ entry.target.classList.add('in'); io.unobserve(entry.target); }
     });
-  }, { threshold:.15 });
+  }, { threshold:.1, rootMargin:'0px 0px -40px 0px' });
   document.querySelectorAll('.reveal:not(.in)').forEach(el=>io.observe(el));
+}
+// Safety net: if the scroll-reveal script ever fails to run (a paste error,
+// an older browser, IntersectionObserver being unavailable), force every
+// section to become visible after a short delay so content never stays
+// permanently hidden.
+function forceRevealFallback(){
+  document.querySelectorAll('.reveal:not(.in)').forEach(el=> el.classList.add('in'));
 }
 
 async function pollForNewOrders(){
   try{
     const orders = await loadOrders();
+    const pending = orders.filter(o=>o.status==='pending').length;
     if(lastKnownOrderCount === null){ lastKnownOrderCount = orders.length; return; }
     if(orders.length > lastKnownOrderCount){
       const newest = orders[0];
@@ -853,6 +1026,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   await loadCart();
 
   observeReveals();
+  setTimeout(forceRevealFallback, 4000);
   pollForNewOrders();
   setInterval(pollForNewOrders, 20000);
 
