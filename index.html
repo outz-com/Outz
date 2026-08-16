@@ -290,7 +290,7 @@
   .qty-row{ display:flex; align-items:center; gap:10px; }
   .qty-btn{ background:none; border:1px solid var(--line); color:var(--white); width:24px; height:24px; border-radius:50%; font-size:.85rem; line-height:1;}
   .qty-btn:hover{ border-color:var(--ice); }
-.rm-btn{ font-size:.7rem; color:var(--danger); letter-spacing:.05em; text-transform:uppercase; margin-left:auto; }
+  .rm-btn{ font-size:.7rem; color:var(--danger); letter-spacing:.05em; text-transform:uppercase; margin-left:auto; }
 
   .cart-total{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; font-family:'Anton',sans-serif; font-size:1.3rem;}
 
@@ -300,7 +300,7 @@
     width:100%; background:var(--panel); border:1px solid var(--line); color:var(--white);
     padding:12px 14px; font-family:inherit; font-size:.9rem; border-radius:4px;
   }
-  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--ice); }
+.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--ice); }
   .field textarea{ resize:vertical; min-height:70px; }
 
   .pay-box{ background:var(--panel); border:1px solid var(--line); padding:20px; text-align:center; margin:18px 0;}
@@ -602,7 +602,7 @@
           <div class="file-drop" id="fileDrop">
             <span id="fileDropText">Click to upload a photo</span>
             <input type="file" id="pImage" accept="image/*" style="display:none;">
-          </div>
+            </div>
         </div>
         <button class="btn" style="width:100%; justify-content:center;" id="addProductBtn">Add to shop</button>
       </div>
@@ -617,15 +617,31 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 const OWNER_PASS = "ALLAHISGREAT786";
 const WHATSAPP_NUMBER = "918089573667";
 const OWNER_EMAIL = "outzclothing46@gmail.com";
 
+const firebaseConfig = {
+  apiKey: "AIzaSyCi0qohZKkjYJhnwwLlFSq0Izqi7qUCFdU",
+  authDomain: "outz-com.firebaseapp.com",
+  databaseURL: "https://outz-com-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "outz-com",
+  storageBucket: "outz-com.firebasestorage.app",
+  messagingSenderId: "582187464897",
+  appId: "1:582187464897:web:c9de8f240e93b48e99bc40"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 let products = [];
 let cart = [];
 let currentFilter = "All";
 let pendingImageData = null;
+let ordersCache = [];
+let lastKnownOrderCount = null;
 
 function fmt(n){ return "₹" + Number(n).toLocaleString("en-IN"); }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -655,69 +671,76 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'), 2400);
 }
 
-/* ---------------- storage helpers ---------------- */
-async function loadProducts(){
+/* ---------------- cart: local to this device only ---------------- */
+function loadCartLocal(){
   try{
-    const res = await window.storage.get('outz:products', true);
-    products = res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){ products = []; }
-  if(!products.length){
-    products = defaultProducts();
-    await saveProducts();
-  }
-  renderProducts();
-  renderManageList();
-  document.getElementById('statCount').textContent = products.length;
-}
-async function saveProducts(){
-  try{ await window.storage.set('outz:products', JSON.stringify(products), true); }
-  catch(e){ console.error('save products failed', e); }
-}
-async function loadOrders(){
-  try{
-    const res = await window.storage.get('outz:orders', true);
-    return res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){ return []; }
-}
-async function saveOrders(orders){
-  try{ await window.storage.set('outz:orders', JSON.stringify(orders), true); }
-  catch(e){ console.error('save orders failed', e); }
-}
-async function loadCart(){
-  try{
-    const res = await window.storage.get('outz:cart', false);
-    cart = res && res.value ? JSON.parse(res.value) : [];
+    const raw = localStorage.getItem('outz_cart');
+    cart = raw ? JSON.parse(raw) : [];
   }catch(e){ cart = []; }
   renderCart();
 }
-async function saveCart(){
-  try{ await window.storage.set('outz:cart', JSON.stringify(cart), false); }
+function saveCartLocal(){
+  try{ localStorage.setItem('outz_cart', JSON.stringify(cart)); }
   catch(e){ console.error('save cart failed', e); }
 }
 
+/* ---------------- products: shared live database ---------------- */
 function defaultProducts(){
   return [
     {
       id: uid(), name: "Ash Grey Boxy Tee", category:"T-Shirt", price: 699,
       desc: "Heavyweight cotton, boxy fit, dropped shoulder.", sizes: ["S","M","L","XL"],
-      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop"
+      image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop",
+      createdAt: Date.now()
     },
     {
       id: uid(), name: "Jet Black Oversized Tee", category:"T-Shirt", price: 749,
       desc: "Oversized silhouette, ribbed collar, garment dyed.", sizes: ["S","M","L","XL","XXL"],
-      image: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?q=80&w=800&auto=format&fit=crop"
+      image: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?q=80&w=800&auto=format&fit=crop",
+      createdAt: Date.now()
     },
     {
       id: uid(), name: "Steel Blue Overshirt", category:"Shirt", price: 1299,
       desc: "Brushed cotton overshirt, dual chest pockets.", sizes: ["M","L","XL"],
-      image: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop"
+      image: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=800&auto=format&fit=crop",
+      createdAt: Date.now()
     },
     {
       id: uid(), name: "Ivory Linen Shirt", category:"Shirt", price: 1099,
       desc: "Breathable linen blend, relaxed collar.", sizes: ["S","M","L"],
-      image: "https://images.unsplash.com/photo-1596957327057-e7f5c8c9c1c0?q=80&w=800&auto=format&fit=crop"
+      image: "https://images.unsplash.com/photo-1596957327057-e7f5c8c9c1c0?q=80&w=800&auto=format&fit=crop",
+      createdAt: Date.now()
     }
   ];
+}
+
+async function seedDefaultsIfEmpty(){
+  try{
+    const snap = await db.ref('outz/products').once('value');
+    if(!snap.exists()){
+      const updates = {};
+      defaultProducts().forEach(p=>{
+        const { id, ...rest } = p;
+        updates[id] = rest;
+      });
+      await db.ref('outz/products').set(updates);
+    }
+  }catch(e){ console.error('seed failed', e); }
+}
+
+function initProductsListener(){
+  db.ref('outz/products').on('value', snap=>{
+    const val = snap.val() || {};
+    products = Object.keys(val)
+      .map(key=>({ id:key, ...val[key] }))
+      .sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+    renderProducts();
+    renderManageList();
+    document.getElementById('statCount').textContent = products.length;
+  }, err=>{
+    console.error('products listener error', err);
+    showToast('Could not load products — check your connection');
+  });
 }
 
 /* ---------------- render: products ---------------- */
@@ -780,12 +803,13 @@ function renderManageList(){
 }
 
 async function deleteProduct(id){
-  products = products.filter(p=>p.id!==id);
-  await saveProducts();
-  renderProducts();
-  renderManageList();
-  document.getElementById('statCount').textContent = products.length;
-  showToast('Product removed');
+  try{
+    await db.ref('outz/products/' + id).remove();
+    showToast('Product removed');
+  }catch(e){
+    console.error(e);
+    showToast('Could not remove product — check your connection');
+  }
 }
 
 /* ---------------- cart ---------------- */
@@ -802,7 +826,7 @@ function addToCart(id){
   const cartKey = id + '__' + (size || 'onesize');
   const existing = cart.find(c=>c.cartKey===cartKey);
   if(existing){ existing.qty += 1; } else { cart.push({cartKey, id:p.id, name:p.name, price:p.price, image:p.image, category:p.category, size, qty:1}); }
-  saveCart();
+  saveCartLocal();
   renderCart();
   showToast(p.name + (size ? ` (${size})` : '') + ' added to bag');
 }
@@ -811,12 +835,12 @@ function changeQty(cartKey, delta){
   if(!item) return;
   item.qty += delta;
   if(item.qty <= 0){ cart = cart.filter(c=>c.cartKey!==cartKey); }
-  saveCart();
+  saveCartLocal();
   renderCart();
 }
 function removeFromCart(cartKey){
   cart = cart.filter(c=>c.cartKey!==cartKey);
-  saveCart();
+  saveCartLocal();
   renderCart();
 }
 function cartTotal(){ return cart.reduce((s,c)=>s + c.price*c.qty, 0); }
@@ -880,7 +904,7 @@ async function submitOrder(via){
     document.getElementById('checkoutStep1').style.display = 'block';
     document.getElementById('checkoutStep2').style.display = 'none';
     return;
-  }
+    }
   if(!isValidPhone(phone)){
     showToast('Please enter a valid phone number');
     document.getElementById('checkoutStep1').style.display = 'block';
@@ -889,19 +913,24 @@ async function submitOrder(via){
   }
   if(!cart.length){ showToast('Your bag is empty'); return; }
 
-  const order = {
-    id: uid().toUpperCase(),
+  const id = uid().toUpperCase();
+  const orderData = {
     name, phone, address,
     items: cart.map(c=>({name:c.name, size:c.size||'', qty:c.qty, price:c.price})),
     total: cartTotal(),
     status: 'pending',
-    time: new Date().toISOString()
+    createdAt: Date.now()
   };
-  const orders = await loadOrders();
-  orders.unshift(order);
-  await saveOrders(orders);
-  lastKnownOrderCount = orders.length;
 
+  try{
+    await db.ref('outz/orders/' + id).set(orderData);
+  }catch(e){
+    console.error(e);
+    showToast('Could not save your order — check your connection and try again');
+    return;
+  }
+
+  const order = { id, ...orderData };
   if(via === 'whatsapp'){
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${buildOrderMessage(order)}`, '_blank');
   } else {
@@ -911,7 +940,7 @@ async function submitOrder(via){
   }
 
   cart = [];
-  await saveCart();
+  saveCartLocal();
   renderCart();
   closeOverlay('checkoutOverlay');
   showToast('Order placed! We\'ll confirm shortly.');
@@ -953,15 +982,14 @@ function lockOwner(){
   document.getElementById('ownerContent').style.display = 'none';
 }
 
-async function renderOrdersList(){
-  const orders = await loadOrders();
-  document.getElementById('orCount').textContent = orders.length;
+function renderOrdersList(){
+  document.getElementById('orCount').textContent = ordersCache.length;
   const el = document.getElementById('atabOrders');
-  if(!orders.length){
+  if(!ordersCache.length){
     el.innerHTML = '<div class="empty-state">No orders yet.</div>';
     return;
   }
-  el.innerHTML = orders.map(o=>`
+  el.innerHTML = ordersCache.map(o=>`
     <div class="order-card">
       <div class="oc-head"><span>#${esc(o.id)}</span><span class="status-pill ${o.status}">${esc(o.status)}</span></div>
       <div>${esc(o.name)} &middot; ${esc(o.phone)}</div>
@@ -973,9 +1001,44 @@ async function renderOrdersList(){
   `).join('');
 }
 async function markConfirmed(id){
-  const orders = await loadOrders();
-  const o = orders.find(x=>x.id===id);
-  if(o){ o.status = 'confirmed'; await saveOrders(orders); renderOrdersList(); showToast('Order marked confirmed'); }
+  try{
+    await db.ref('outz/orders/' + id + '/status').set('confirmed');
+    showToast('Order marked confirmed');
+  }catch(e){
+    console.error(e);
+    showToast('Could not update order — check your connection');
+  }
+}
+
+function initOrdersListener(){
+  db.ref('outz/orders').on('value', snap=>{
+    const val = snap.val() || {};
+    const orders = Object.keys(val)
+      .map(key=>({ id:key, ...val[key] }))
+      .sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+    ordersCache = orders;
+
+    if(lastKnownOrderCount !== null && orders.length > lastKnownOrderCount){
+      const newest = orders[0];
+      document.getElementById('ownerPing').style.display = 'block';
+      document.getElementById('ownerPing2').style.display = 'inline-block';
+      document.title = `(New order!) OUTZ CLOTHING`;
+      if('Notification' in window && Notification.permission === 'granted'){
+        new Notification('New OUTZ order placed', {
+          body: `${newest.name} · ${fmt(newest.total)} · #${newest.id}`
+        });
+      }
+      showToast('New order placed! Check the owner panel.');
+    }
+    lastKnownOrderCount = orders.length;
+
+    document.getElementById('orCount').textContent = orders.length;
+    if(document.getElementById('ownerContent').style.display === 'block'){
+      renderOrdersList();
+    }
+  }, err=>{
+    console.error('orders listener error', err);
+  });
 }
 
 async function addProduct(){
@@ -988,11 +1051,16 @@ async function addProduct(){
     showToast('Add a name, a valid price and a photo');
     return;
   }
-  products.unshift({ id: uid(), name, category, price, desc, sizes, image: pendingImageData });
-  await saveProducts();
-  renderProducts();
-  renderManageList();
-  document.getElementById('statCount').textContent = products.length;
+  const id = uid();
+  const productData = { name, category, price, desc, sizes, image: pendingImageData, createdAt: Date.now() };
+
+  try{
+    await db.ref('outz/products/' + id).set(productData);
+  }catch(e){
+    console.error(e);
+    showToast('Could not save product — check your connection and try again');
+    return;
+  }
 
   document.getElementById('pName').value = '';
   document.getElementById('pPrice').value = '';
@@ -1000,7 +1068,6 @@ async function addProduct(){
   document.querySelectorAll('#pSizes input:checked').forEach(cb=> cb.checked = false);
   pendingImageData = null;
   document.getElementById('fileDrop').classList.remove('has-img');
-  document.getElementById('fileDropText').textContent = 'Click to upload a photo';
   document.getElementById('fileDrop').innerHTML = '<span id="fileDropText">Click to upload a photo</span><input type="file" id="pImage" accept="image/*" style="display:none;">';
   bindFileDrop();
   showToast('Product added to shop');
@@ -1028,8 +1095,6 @@ function openOverlay(id){ document.getElementById(id).classList.add('open'); }
 function closeOverlay(id){ document.getElementById(id).classList.remove('open'); }
 
 /* ---------------- init / events ---------------- */
-let lastKnownOrderCount = null;
-
 function observeReveals(){
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(entry=>{
@@ -1046,42 +1111,18 @@ function forceRevealFallback(){
   document.querySelectorAll('.reveal:not(.in)').forEach(el=> el.classList.add('in'));
 }
 
-async function pollForNewOrders(){
-  try{
-    const orders = await loadOrders();
-    const pending = orders.filter(o=>o.status==='pending').length;
-    if(lastKnownOrderCount === null){ lastKnownOrderCount = orders.length; return; }
-    if(orders.length > lastKnownOrderCount){
-      const newest = orders[0];
-      document.getElementById('ownerPing').style.display = 'block';
-      document.getElementById('ownerPing2').style.display = 'inline-block';
-      document.title = `(New order!) OUTZ CLOTHING`;
-      if('Notification' in window && Notification.permission === 'granted'){
-        new Notification('New OUTZ order placed', {
-          body: `${newest.name} · ${fmt(newest.total)} · #${newest.id}`
-        });
-      }
-      showToast('New order placed! Check the owner panel.');
-    }
-    lastKnownOrderCount = orders.length;
-    if(document.getElementById('ownerContent').style.display === 'block'){
-      document.getElementById('orCount').textContent = orders.length;
-    }
-  }catch(e){ /* storage not available, skip silently */ }
-}
-
 document.addEventListener('DOMContentLoaded', async ()=>{
   const splashDuration = 3200;
   requestAnimationFrame(()=> document.getElementById('splashFill').style.width = '100%');
   setTimeout(()=> document.getElementById('splash').classList.add('hide'), splashDuration);
 
-  await loadProducts();
-  await loadCart();
+  loadCartLocal();
+  await seedDefaultsIfEmpty();
+  initProductsListener();
+  initOrdersListener();
 
   observeReveals();
   setTimeout(forceRevealFallback, 4000);
-  pollForNewOrders();
-  setInterval(pollForNewOrders, 20000);
 
   window.addEventListener('scroll', ()=>{
     document.querySelector('header').classList.toggle('scrolled', window.scrollY > 10);
