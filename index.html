@@ -300,7 +300,7 @@
     width:100%; background:var(--panel); border:1px solid var(--line); color:var(--white);
     padding:12px 14px; font-family:inherit; font-size:.9rem; border-radius:4px;
   }
-.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--ice); }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--ice); }
   .field textarea{ resize:vertical; min-height:70px; }
 
   .pay-box{ background:var(--panel); border:1px solid var(--line); padding:20px; text-align:center; margin:18px 0;}
@@ -563,10 +563,10 @@
 
     <div id="lockScreen" class="lock-screen">
       <div class="icon">&#128274;</div>
-      <p style="color:var(--silver); font-size:.85rem; margin-bottom:18px;">Enter the owner passcode to manage products and view orders.</p>
-      <div class="field"><input id="ownerPass" type="password" placeholder="Passcode"></div>
-      <button class="btn" style="width:100%; justify-content:center;" id="unlockBtn">Unlock</button>
-      <p style="font-size:.7rem; color:#666; margin-top:14px;">Forgot your passcode? It's set in the site's code, ask whoever built the site for you.</p>
+      <p style="color:var(--silver); font-size:.85rem; margin-bottom:18px;">Log in with your owner account to manage products and view orders.</p>
+      <div class="field" style="text-align:left;"><input id="ownerEmail" type="email" placeholder="Owner email" autocomplete="username"></div>
+      <div class="field" style="text-align:left;"><input id="ownerPass" type="password" placeholder="Password" autocomplete="current-password"></div>
+      <button class="btn" style="width:100%; justify-content:center;" id="unlockBtn">Log in</button>
     </div>
 
     <div id="ownerContent" style="display:none;">
@@ -602,7 +602,7 @@
           <div class="file-drop" id="fileDrop">
             <span id="fileDropText">Click to upload a photo</span>
             <input type="file" id="pImage" accept="image/*" style="display:none;">
-            </div>
+          </div>
         </div>
         <button class="btn" style="width:100%; justify-content:center;" id="addProductBtn">Add to shop</button>
       </div>
@@ -619,8 +619,8 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
-const OWNER_PASS = "ALLAHISGREAT786";
 const WHATSAPP_NUMBER = "918089573667";
 const OWNER_EMAIL = "outzclothing46@gmail.com";
 
@@ -635,13 +635,18 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
+// Owner login only lasts for this browser tab/session — closing the browser
+// requires logging in again, so a lost or shared device doesn't stay signed in.
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e=>console.error('persistence error', e));
 
 let products = [];
 let cart = [];
 let currentFilter = "All";
 let pendingImageData = null;
-let ordersCache = [];
+  let ordersCache = [];
 let lastKnownOrderCount = null;
+let ordersListenerAttached = false;
 
 function fmt(n){ return "₹" + Number(n).toLocaleString("en-IN"); }
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -808,7 +813,7 @@ async function deleteProduct(id){
     showToast('Product removed');
   }catch(e){
     console.error(e);
-    showToast('Could not remove product — check your connection');
+    showToast('Could not remove product: ' + (e && e.message ? e.message : 'check your connection'));
   }
 }
 
@@ -904,7 +909,7 @@ async function submitOrder(via){
     document.getElementById('checkoutStep1').style.display = 'block';
     document.getElementById('checkoutStep2').style.display = 'none';
     return;
-    }
+  }
   if(!isValidPhone(phone)){
     showToast('Please enter a valid phone number');
     document.getElementById('checkoutStep1').style.display = 'block';
@@ -926,7 +931,7 @@ async function submitOrder(via){
     await db.ref('outz/orders/' + id).set(orderData);
   }catch(e){
     console.error(e);
-    showToast('Could not save your order — check your connection and try again');
+    showToast('Could not save your order: ' + (e && e.message ? e.message : 'check your connection and try again'));
     return;
   }
 
@@ -947,37 +952,54 @@ async function submitOrder(via){
 }
 
 /* ---------------- owner panel ---------------- */
-function unlockOwner(){
+async function unlockOwner(){
   const now = Date.now();
   if(now < ownerLockUntil){
     const secs = Math.ceil((ownerLockUntil - now)/1000);
     showToast(`Too many attempts. Try again in ${secs}s`);
     return;
   }
-  const val = document.getElementById('ownerPass').value;
-  if(val === OWNER_PASS){
+  const email = document.getElementById('ownerEmail').value.trim();
+  const pass = document.getElementById('ownerPass').value;
+  if(!email || !pass){
+    showToast('Enter your owner email and password');
+    return;
+  }
+
+  const btn = document.getElementById('unlockBtn');
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Logging in\u2026';
+
+  try{
+    await auth.signInWithEmailAndPassword(email, pass);
     ownerFailCount = 0;
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('ownerContent').style.display = 'block';
     document.getElementById('ownerPass').value = '';
-    renderOrdersList();
+    initOrdersListener();
     if('Notification' in window && Notification.permission === 'default'){
       Notification.requestPermission();
     }
     document.getElementById('ownerPing').style.display = 'none';
     document.getElementById('ownerPing2').style.display = 'none';
-  } else {
+  } catch(e){
+    console.error(e);
     ownerFailCount++;
     if(ownerFailCount >= 5){
       ownerLockUntil = Date.now() + 30000;
       ownerFailCount = 0;
       showToast('Too many wrong attempts. Locked for 30s');
     } else {
-      showToast('Wrong passcode');
+      showToast('Login failed: ' + (e && e.message ? e.message : 'check your email and password'));
     }
   }
+  btn.disabled = false;
+  btn.textContent = originalLabel;
 }
 function lockOwner(){
+  auth.signOut().catch(e=>console.error('sign out error', e));
+  if(ordersListenerAttached){ db.ref('outz/orders').off('value'); ordersListenerAttached = false; }
   document.getElementById('lockScreen').style.display = 'block';
   document.getElementById('ownerContent').style.display = 'none';
 }
@@ -1006,11 +1028,14 @@ async function markConfirmed(id){
     showToast('Order marked confirmed');
   }catch(e){
     console.error(e);
-    showToast('Could not update order — check your connection');
+    showToast('Could not update order: ' + (e && e.message ? e.message : 'check your connection'));
   }
 }
 
 function initOrdersListener(){
+  if(ordersListenerAttached) return;
+  ordersListenerAttached = true;
+  lastKnownOrderCount = null;
   db.ref('outz/orders').on('value', snap=>{
     const val = snap.val() || {};
     const orders = Object.keys(val)
@@ -1038,6 +1063,7 @@ function initOrdersListener(){
     }
   }, err=>{
     console.error('orders listener error', err);
+    ordersListenerAttached = false;
   });
 }
 
@@ -1054,14 +1080,23 @@ async function addProduct(){
   const id = uid();
   const productData = { name, category, price, desc, sizes, image: pendingImageData, createdAt: Date.now() };
 
+  const addBtn = document.getElementById('addProductBtn');
+  addBtn.disabled = true;
+  const originalLabel = addBtn.textContent;
+  addBtn.textContent = 'Saving\u2026';
+
   try{
     await db.ref('outz/products/' + id).set(productData);
   }catch(e){
     console.error(e);
-    showToast('Could not save product — check your connection and try again');
+    showToast('Could not save product: ' + (e && e.message ? e.message : 'unknown error, check your connection'));
+    addBtn.disabled = false;
+    addBtn.textContent = originalLabel;
     return;
   }
 
+  addBtn.disabled = false;
+  addBtn.textContent = originalLabel;
   document.getElementById('pName').value = '';
   document.getElementById('pPrice').value = '';
   document.getElementById('pDesc').value = '';
@@ -1073,20 +1108,56 @@ async function addProduct(){
   showToast('Product added to shop');
 }
 
+// Shrinks and re-compresses a photo in the browser before it's saved, so a
+// multi-megabyte camera photo never gets sent to the database as-is — that
+// was the actual cause of "could not save product" even on a good connection.
+function compressImage(file, maxDim = 1000, quality = 0.72){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > height && width > maxDim){
+          height = Math.round(height * (maxDim / width));
+          width = maxDim;
+        } else if(height > maxDim){
+          width = Math.round(width * (maxDim / height));
+          height = maxDim;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = ()=> reject(new Error('That file could not be read as an image'));
+      img.src = e.target.result;
+    };
+    reader.onerror = ()=> reject(new Error('Could not read that file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 function bindFileDrop(){
   const drop = document.getElementById('fileDrop');
   const input = document.getElementById('pImage');
   drop.onclick = ()=> input.click();
-  input.onchange = (e)=>{
+  input.onchange = async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev)=>{
-      pendingImageData = ev.target.result;
+    drop.innerHTML = '<span>Processing photo&hellip;</span>';
+    try{
+      pendingImageData = await compressImage(file);
       drop.classList.add('has-img');
       drop.innerHTML = `<img src="${pendingImageData}" alt="preview">`;
-    };
-    reader.readAsDataURL(file);
+    }catch(err){
+      console.error(err);
+      showToast('Could not process that photo — try a different one');
+      drop.classList.remove('has-img');
+      drop.innerHTML = '<span id="fileDropText">Click to upload a photo</span><input type="file" id="pImage" accept="image/*" style="display:none;">';
+      bindFileDrop();
+    }
   };
 }
 
@@ -1119,7 +1190,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   loadCartLocal();
   await seedDefaultsIfEmpty();
   initProductsListener();
-  initOrdersListener();
+  // Orders are only readable once logged in as the owner (see database rules),
+  // so the live orders listener attaches inside unlockOwner() after a
+  // successful login instead of here.
 
   observeReveals();
   setTimeout(forceRevealFallback, 4000);
@@ -1134,9 +1207,19 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   bindFileDrop();
 
+  function openOwnerPanel(){
+    openOverlay('ownerOverlay');
+    // If already logged in earlier this session, skip straight to the panel
+    // instead of asking for the password again.
+    if(auth.currentUser){
+      document.getElementById('lockScreen').style.display = 'none';
+      document.getElementById('ownerContent').style.display = 'block';
+      initOrdersListener();
+    }
+  }
   document.getElementById('cartBtn').onclick = ()=> openOverlay('cartOverlay');
-  document.getElementById('ownerBtn').onclick = ()=> openOverlay('ownerOverlay');
-  document.getElementById('ownerBtn2').onclick = ()=> openOverlay('ownerOverlay');
+  document.getElementById('ownerBtn').onclick = openOwnerPanel;
+  document.getElementById('ownerBtn2').onclick = openOwnerPanel;
   document.querySelectorAll('[data-close]').forEach(btn=>{
     btn.onclick = ()=> closeOverlay(btn.getAttribute('data-close'));
   });
